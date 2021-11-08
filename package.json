@@ -2,6 +2,7 @@
   "devDependencies": {
     "geolerp": "^1.0.0",
     "haversine-distance": "^1.2.1",
+    "performance-now": "^2.1.0",
     "tape": "^5.3.1"
   }
 }
