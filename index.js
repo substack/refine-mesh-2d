@@ -3,7 +3,7 @@ var v1 = [0,0]
 
 module.exports = function refine2d(mesh, opts) {
   var r = new Refine(mesh, opts)
-  r.refine(4)
+  r.refine(10000)
   return r.mesh
 }
 
@@ -17,30 +17,20 @@ function Refine(mesh, opts) {
   this._maxL = opts.maxEdgeLength
   this._distance = opts.distance || cartesianDistance
   this._lerp = opts.lerp || cartesianLerp
-  this._edgeToCells = {}
-  this._buildEdgeTable()
-  this._cellQueue = []
-}
-
-Refine.prototype._buildEdgeTable = function () {
-  for (var i = 0; i < this.mesh.cells.length/3; i++) {
-    this.addCellEdges(i)
-  }
+  this._divisions = null
+  this._dividedCells = null
 }
 
 Refine.prototype.refine = function (n) {
-  var updates = 0
   for (var j = 0; j < n; j++) {
-    updates = 0
+    this._divisions = {}
+    this._dividedCells = new Set
     var clen = this.mesh.cells.length/3
     for (var i = 0; i < clen; i++) {
-      if (this._checkDivide(i)) updates++
+      this._checkDivide(i)
     }
-    var cqlen = this._cellQueue.length
-    for (var i = 0; i < cqlen; i++) {
-      if (this._checkDivide(this._cellQueue[i])) updates++
-    }
-    if (updates === 0) break
+    if (this._dividedCells.size === 0) return
+    this._applyDivisions()
   }
 }
 
@@ -55,86 +45,99 @@ Refine.prototype._checkDivide = function (i) {
   var y1 = positions[c1*2+1]
   var x2 = positions[c2*2+0]
   var y2 = positions[c2*2+1]
-  var updated = false
   var d01 = this._distance(set2(v0,x0,y0), set2(v1,x1,y1))
   var d12 = this._distance(set2(v0,x1,y1), set2(v1,x2,y2))
   var d20 = this._distance(set2(v0,x2,y2), set2(v1,x0,y0))
-  if (d01 >= d12 && d01 >= d20 && d01 > this._maxL) {
-    this._divideEdge(c0,c1)
-    updated = true
-  } else if (d12 >= d01 && d12 >= d20 && d12 > this._maxL) {
-    this._divideEdge(c1,c2)
-    updated = true
-  } else if (d20 >= d01 && d20 >= d12 && d20 > this._maxL) {
-    this._divideEdge(c2,c0)
-    updated = true
-  }
-  return updated
+  if (d01 > this._maxL) this._divide(c0,c1,i)
+  if (d12 > this._maxL) this._divide(c1,c2,i)
+  if (d20 > this._maxL) this._divide(c2,c0,i)
 }
 
-Refine.prototype._divideEdge = function (e0,e1) {
+Refine.prototype._divide = function (e0,e1,i) {
+  var ek = edgeKey(e0,e1)
+  if (this._divisions[ek] !== undefined) {
+    this._dividedCells.add(i)
+    return
+  }
   var cells = this.mesh.cells, positions = this.mesh.positions
+  var k = positions.length/2
   set2(v0, positions[e0*2+0], positions[e0*2+1])
   set2(v1, positions[e1*2+0], positions[e1*2+1])
-  var k = positions.length/2
   this._lerp(v0, v0, v1, 0.5)
   positions.push(v0[0], v0[1])
+  this._divisions[ek] = k
+  this._dividedCells.add(i)
+}
 
-  var ek = e0 < e1 ? e0+','+e1 : e1+','+e0
-  var cs = this._edgeToCells[ek]
-  for (var c of cs) {
+Refine.prototype._applyDivisions = function () {
+  var cells = this.mesh.cells, positions = this.mesh.positions
+  for (var c of this._dividedCells) {
     var c0 = cells[c*3+0]
     var c1 = cells[c*3+1]
     var c2 = cells[c*3+2]
-    var opposite = -1
-    if (c0 !== e0 && c0 !== e1) { opposite = c0 }
-    if (c1 !== e0 && c1 !== e1) { opposite = c1 }
-    if (c2 !== e0 && c2 !== e1) { opposite = c2 }
-    // new cell:
-    cells.push(k, opposite, e0)
-    this.addCellEdges(cells.length/3-1)
-    // update previous cell and add to cellQueue:
-    this.removeCellEdges(c)
-    cells[c*3+0] = k
-    cells[c*3+1] = e1
-    cells[c*3+2] = opposite
-    this.addCellEdges(c)
-    this._cellQueue.push(c, cells.length/3-1)
+    var ek01 = edgeKey(c0,c1)
+    var ek12 = edgeKey(c1,c2)
+    var ek20 = edgeKey(c2,c0)
+    var k01 = this._divisions[ek01]
+    var k12 = this._divisions[ek12]
+    var k20 = this._divisions[ek20]
+    if (k01 !== undefined && k12 !== undefined && k20 !== undefined) {
+      cells[c*3+0] = k01
+      cells[c*3+1] = k12
+      cells[c*3+2] = k20
+      cells.push(c0, k01, k20, k01, c1, k12, k20, k12, c2)
+    } else if (k01 !== undefined && k12 !== undefined) {
+      cells[c*3+0] = k01
+      cells[c*3+1] = c1
+      cells[c*3+2] = k12
+      if (this._idist(k01,c2) < this._idist(k12,c0)) {
+        cells.push(k01,k12,c2,c0,k01,c2)
+      } else {
+        cells.push(c0,k01,k12,c0,k12,c2)
+      }
+    } else if (k12 !== undefined && k20 !== undefined) {
+      cells[c*3+0] = k20
+      cells[c*3+1] = k12
+      cells[c*3+2] = kc2
+      if (this._idist(k12,c0) < this._idist(k20,c1)) {
+        cells.push(c0,k12,k20,c0,c1,k12)
+      } else {
+        cells.push(k20,c1,k12,c0,c1,k20)
+      }
+    } else if (k01 !== undefined && k20 !== undefined) {
+      cells[c*3+0] = c0
+      cells[c*3+1] = k01
+      cells[c*3+2] = k20
+      if (this._idist(k20,c1) < this._idist(k01,c2)) {
+        cells.push(k01,c1,k20,k20,c1,c2)
+      } else {
+        cells.push(k01,c2,k20,k01,c1,c2)
+      }
+    } else if (k01 !== undefined) {
+      cells[c*3+0] = c0
+      cells[c*3+1] = k01
+      cells[c*3+2] = c2
+      cells.push(k01,c1,c2)
+    } else if (k12 !== undefined) {
+      cells[c*3+0] = c0
+      cells[c*3+1] = k12
+      cells[c*3+2] = c2
+      cells.push(c0,c1,k12)
+    } else if (k20 !== undefined) {
+      cells[c*3+0] = c0
+      cells[c*3+1] = c1
+      cells[c*3+2] = k20
+      cells.push(k20,c1,c2)
+    }
   }
-  delete this._edgeToCells[ek]
 }
 
-Refine.prototype.addCellEdges = function (i) {
-  var c0 = this.mesh.cells[i*3+0]
-  var c1 = this.mesh.cells[i*3+1]
-  var c2 = this.mesh.cells[i*3+2]
-  var ek01 = c0<c1 ? c0+','+c1 : c1+','+c0
-  var ek12 = c1<c2 ? c1+','+c2 : c2+','+c1
-  var ek20 = c2<c0 ? c2+','+c0 : c0+','+c2
-  if (!this._edgeToCells[ek01]) this._edgeToCells[ek01] = new Set
-  this._edgeToCells[ek01].add(i)
-  if (!this._edgeToCells[ek12]) this._edgeToCells[ek12] = new Set
-  this._edgeToCells[ek12].add(i)
-  if (!this._edgeToCells[ek20]) this._edgeToCells[ek20] = new Set
-  this._edgeToCells[ek20].add(i)
-}
-
-Refine.prototype.removeCellEdges = function (i) {
-  var c0 = this.mesh.cells[i*3+0]
-  var c1 = this.mesh.cells[i*3+1]
-  var c2 = this.mesh.cells[i*3+2]
-  var ek01 = c0<c1 ? c0+','+c1 : c1+','+c0
-  var ek12 = c1<c2 ? c1+','+c2 : c2+','+c1
-  var ek20 = c2<c0 ? c2+','+c0 : c0+','+c2
-  if (this._edgeToCells[ek01]) {
-    this._edgeToCells[ek01].delete(i)
-  }
-  if (this._edgeToCells[ek12]) {
-    this._edgeToCells[ek12].delete(i)
-  }
-  if (this._edgeToCells[ek20]) {
-    this._edgeToCells[ek20].delete(i)
-  }
+Refine.prototype._idist = function (i,j) {
+  var x0 = this.mesh.positions[i*2+0]
+  var y0 = this.mesh.positions[i*2+1]
+  var x1 = this.mesh.positions[j*2+0]
+  var y2 = this.mesh.positions[j*2+1]
+  return this._distance(set2(v0,x0,y0), set2(v1,x1,y1))
 }
 
 function cartesianDistance(a, b) {
@@ -154,4 +157,8 @@ function set2(out, x, y) {
   out[0] = x
   out[1] = y
   return out
+}
+
+function edgeKey(a,b) {
+  return a < b ? a+','+b : b+','+a
 }
