@@ -6,6 +6,9 @@ related package for 3d: [refine-mesh](https://www.npmjs.com/package/refine-mesh)
 
 # example
 
+this example shows using a custom distance and lerp function,
+but you will get a default cartesian implementation
+
 ``` js
 var refine = require('refine-mesh-2d')
 var mesh = {
@@ -51,3 +54,29 @@ output:
 }
 ```
 
+# api
+
+``` js
+var refine = require('refine-mesh-2d')
+```
+
+## refine(mesh, opts)
+
+Update `mesh.positions` and `mesh.cells` in-place so that the edge length is no more than
+`opts.maxEdgeLength`. Optionally define:
+
+* `opts.distance(a,b)` - distance between two `[x,y]` points `a` and `b`
+* `opts.lerp(out,a,b,t)` - interpolate between two `[x,y]` points `a` to `b`
+  from `t=0.0` to `t=1.0`, writing the result in `out`
+
+By default you get cartesian distance and lerp routines.
+
+# license
+
+bsd
+
+# install
+
+```
+npm install refine-mesh-2d
+```
