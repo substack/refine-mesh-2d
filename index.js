@@ -136,7 +136,7 @@ Refine.prototype._idist = function (i,j) {
   var x0 = this.mesh.positions[i*2+0]
   var y0 = this.mesh.positions[i*2+1]
   var x1 = this.mesh.positions[j*2+0]
-  var y2 = this.mesh.positions[j*2+1]
+  var y1 = this.mesh.positions[j*2+1]
   return this._distance(set2(v0,x0,y0), set2(v1,x1,y1))
 }
 

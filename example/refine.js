@@ -10,5 +10,6 @@ var mesh = {
 refine(mesh, {
   maxEdgeLength: 800_000,
   distance: require('haversine-distance'),
+  lerp: require('geolerp'),
 })
 console.log(mesh)
