@@ -63,7 +63,9 @@ var refine = require('refine-mesh-2d')
 ## refine(mesh, opts)
 
 Update `mesh.positions` and `mesh.cells` in-place so that the edge length is no more than
-`opts.maxEdgeLength`. Optionally define:
+`opts.maxEdgeLength`. `mesh.positions` and `mesh.cells` may both by nested or flat.
+
+Optionally define:
 
 * `opts.distance(a,b)` - distance between two `[x,y]` points `a` and `b`
 * `opts.lerp(out,a,b,t)` - interpolate between two `[x,y]` points `a` to `b`
