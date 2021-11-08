@@ -1,9 +1,8 @@
-var v0 = [0,0]
-var v1 = [0,0]
+var v0 = [0,0], v1 = [0,0]
 
 module.exports = function refine2d(mesh, opts) {
   var r = new Refine(mesh, opts)
-  r.refine(10000)
+  r.refine(opts.n || Infinity)
   return r.mesh
 }
 
@@ -22,14 +21,27 @@ function Refine(mesh, opts) {
 }
 
 Refine.prototype.refine = function (n) {
+  this._dividedCells = null
+  var ci = this.mesh.cells.length/3
   for (var j = 0; j < n; j++) {
     this._divisions = {}
+    var updated = this._dividedCells
     this._dividedCells = new Set
-    var clen = this.mesh.cells.length/3
-    for (var i = 0; i < clen; i++) {
-      this._checkDivide(i)
+    if (j === 0) {
+      var clen = this.mesh.cells.length/3
+      for (var i = 0; i < clen; i++) {
+        this._checkDivide(i)
+      }
+    } else {
+      for (var i of updated) {
+        this._checkDivide(i)
+      }
+      for (var i = ci; i < this.mesh.cells.length/3; i++) {
+        this._checkDivide(i)
+      }
     }
     if (this._dividedCells.size === 0) return
+    this._updatedCells = new Set
     this._applyDivisions()
   }
 }
