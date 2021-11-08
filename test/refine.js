@@ -7,8 +7,9 @@ test('cartesian triangle', function (t) {
     positions: [ 0,0, 0,5, 5,0 ],
     cells: [ 0,1,2 ],
   }
-  refine(mesh, { maxEdgeLength: 2 })
-  checkEdgeLength(t, mesh, 2)
+  var opts = { maxEdgeLength: 2 }
+  refine(mesh, opts)
+  checkEdgeLength(t, mesh, opts)
   t.end()
 })
 
@@ -17,7 +18,19 @@ test('big cartesian triangle', function (t) {
     positions: [ 0,0, 0,500, 500,0 ],
     cells: [ 0,1,2 ],
   }
-  refine(mesh, { maxEdgeLength: 2 })
-  checkEdgeLength(t, mesh, 2)
+  var opts = { maxEdgeLength: 2 }
+  refine(mesh, opts)
+  checkEdgeLength(t, mesh, opts)
+  t.end()
+})
+
+test('multiple triangles', function (t) {
+  var mesh = {
+    positions: [ 0,0, 0,10, 10,0, 10,15, 15,7 ],
+    cells: [ 0,1,2, 1,2,3, 2,3,4 ],
+  }
+  var opts = { maxEdgeLength: 1 }
+  refine(mesh, opts)
+  checkEdgeLength(t, mesh, opts)
   t.end()
 })
