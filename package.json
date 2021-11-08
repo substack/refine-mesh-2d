@@ -1,11 +1,16 @@
 {
+  "name": "refine-mesh-2d",
+  "version": "1.0.0",
+  "description": "refine a 2d mesh by splitting edges longer than a maximum length",
   "devDependencies": {
     "geolerp": "^1.0.0",
     "haversine-distance": "^1.2.1",
     "performance-now": "^2.1.0",
+    "regl": "^2.1.0",
     "tape": "^5.3.1"
   },
   "scripts": {
     "test": "tape test/*.js"
-  }
+  },
+  "license": "bsd"
 }
